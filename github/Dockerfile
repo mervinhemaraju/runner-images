@@ -5,7 +5,6 @@ FROM ghcr.io/actions/actions-runner:latest
 USER root
 
 # Combine layers and use --no-install-recommends to reduce image size
-# Use apt-get clean and remove cache in the same layer
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     wget \
@@ -20,29 +19,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Install OCI CLI - cache this layer separately as it changes less frequently
+# Create symlinks for python/pip directly (simpler and more reliable)
+RUN ln -sf /usr/bin/python3 /usr/bin/python && \
+    ln -sf /usr/bin/pip3 /usr/bin/pip
+
+# Create necessary directories
+RUN mkdir -p /home/runner/.oci/keys \
+    /home/runner/cloudflare \
+    /home/runner/.kube \
+    /home/runner/bin && \
+    chown -R runner:runner /home/runner
+
+# Switch to runner user BEFORE installing OCI CLI
+USER runner
+
+# Install OCI CLI as runner user
 RUN curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh > /tmp/install-oci-cli.sh && \
     chmod +x /tmp/install-oci-cli.sh && \
     /tmp/install-oci-cli.sh --accept-all-defaults && \
     rm -f /tmp/install-oci-cli.sh
 
-# Create symlinks for python/pip (this works system-wide)
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1 && \
-    update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
+# Add to PATH and also update runner's bash profile
+RUN echo 'export PATH="/home/runner/bin:$PATH"' >> /home/runner/.bashrc && \
+    echo 'export PATH="/home/runner/bin:$PATH"' >> /home/runner/.profile
 
-# Create necessary directories in one layer
-RUN mkdir -p /home/runner/.oci/keys \
-    /home/runner/cloudflare \
-    /home/runner/.kube && \
-    chown -R runner:runner /home/runner/.oci \
-    /home/runner/cloudflare \
-    /home/runner/.kube
-
-# Add OCI CLI to PATH for all users
-ENV PATH="/root/bin:/home/runner/bin:${PATH}"
-
-# Switch back to runner user
-USER runner
+ENV PATH="/home/runner/bin:${PATH}"
 
 # Set working directory
 WORKDIR /home/runner
