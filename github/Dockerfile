@@ -31,7 +31,7 @@ RUN mkdir -p /home/runner/.oci/keys \
     chown runner:runner /home/runner/cloudflare \
     chown runner:runner /home/runner/.oci \
     chown runner:runner /home/runner/.oci/keys \
-    chown runner:runner /home/runner/.kube\
+    chown runner:runner /home/runner/.kube \
     chown runner:runner /home/runner/bin
 
 # Switch to runner user BEFORE installing OCI CLI
